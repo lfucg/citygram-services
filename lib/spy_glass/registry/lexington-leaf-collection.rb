@@ -3,7 +3,7 @@ require 'digest/md5'
 
 helper = Object.new
 def helper.collection_season
-  2017
+  2016
 end
 
 def helper.begin_date_correction(new_date)
@@ -15,7 +15,7 @@ def helper.in_progress_correction(old_date, new_date)
 end
 
 def helper.manual_message(zone, zone_id, status)
-  return {} unless collection_season == 2017
+  return {} unless collection_season == 2016
 
   message = if zone == 'C-1' && status == 'In Progress'
     in_progress_correction('11/14', '11/22')
@@ -107,7 +107,7 @@ SpyGlass::Registry << SpyGlass::Client::JSON.new(opts) do |esri_formatted|
     status = feature['attributes']['GIS_master.DBO.LeafZoneSchedule.Status']
     dates = feature['attributes']['GIS_master.DBO.LeafZoneSchedule.Dates']
     # necessary if any of the statuses from this year are the same as their last status from prev year
-    collection_season = '2017'
+    collection_season = '2016'
     title =  "Hello! Leaf collection begins soon. For more information please visit https://lexingtonky.gov/leaves"
 
     {
