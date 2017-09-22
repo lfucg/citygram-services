@@ -94,9 +94,11 @@ SpyGlass::Registry << SpyGlass::Client::JSON.new(opts) do |esri_formatted|
          }
       }
     end
+
   end
 
-  { 'type' => 'FeatureCollection', 'features' => features.compact }
+  # { 'type' => 'FeatureCollection', 'features' => features.compact }
+  { 'type' => 'FeatureCollection', 'features' => [] }
 end
 
 opts[:path] = '/lexington-leaf-collection-citygram-events-format'
