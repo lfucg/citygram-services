@@ -14,23 +14,16 @@ def helper.in_progress_correction(old_date, new_date)
   "There was an error in the leaf map that impacts your address. Leaf vacuuming for your area began on #{new_date}, not #{old_date}. We are in the process of vacuuming your area, and will be to your house soon if we have not serviced your address already. We apologize for the mistake, and any inconvenience it caused."
 end
 
-def helper.manual_message(zone, zone_id, status)
+def helper.manual_message(zone, zone_id, status, dates)
   return {} unless collection_season == 2016
 
-  message = if zone == 'C-1' && status == 'In Progress'
-    in_progress_correction('11/14', '11/22')
-  elsif zone == 'C-3' && status == 'In Progress'
-    in_progress_correction('11/14', '11/18')
-  elsif zone == 'C-4' && status == 'Next'
-    begin_date_correction('11/28')
-  elsif zone == 'C-7' && status == 'Pending'
-    begin_date_correction('12/5')
+  message = if zone == 'C-7'
+    "Important leaf vacuuming information... The text you received last week contained the incorrect start date for your street's leaf vacuuming service. The correct date is 11/30. We apologize for the error. Please be sure to prepare your leaves before collection begins by raking them in your yard to the edge of the sidewalk or curb. Never rake leaves into the street. We will text you a reminder the week before your vacuum collection begins. To unsubscribe from these updates, respond REMOVE. To enroll with a new address, respond with REMOVE and visit www.LexingtonKY.gov/leaves later this week."
   end
-
   if (message)
     # hash ensures any change in a message triggers new event in citygram
     message_hash = Digest::MD5.hexdigest(message)
-    { message_id: "#{collection_season}_#{zone_id}_#{status}_#{message_hash}", message: message }
+    { message_id: "#{collection_season}_#{zone_id}_#{status}_correction", message: message }
   else
     {}
   end
@@ -59,9 +52,10 @@ def helper.automated_message(zone_id, status, dates)
 end
 
 def helper.message(zone, zone_id, status, dates)
-  manual = manual_message(zone, zone_id, status)
+  manual = manual_message(zone, zone_id, status, dates)
 
-  manual[:message] ? manual : automated_message(zone_id, status, dates)
+  # manual[:message] ? manual : automated_message(zone_id, status, dates)
+  manual[:message] ? manual : {}
 end
 
 opts = {
@@ -98,7 +92,7 @@ SpyGlass::Registry << SpyGlass::Client::JSON.new(opts) do |esri_formatted|
   end
 
   # { 'type' => 'FeatureCollection', 'features' => features.compact }
-  { 'type' => 'FeatureCollection', 'features' => [] }
+  { 'type' => 'FeatureCollection', 'features' => features.compact }
 end
 
 opts[:path] = '/lexington-leaf-collection-citygram-events-format'
