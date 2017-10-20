@@ -3,7 +3,7 @@ require 'digest/md5'
 
 helper = Object.new
 def helper.collection_season
-  2016
+  2017
 end
 
 def helper.begin_date_correction(new_date)
@@ -14,19 +14,39 @@ def helper.in_progress_correction(old_date, new_date)
   "There was an error in the leaf map that impacts your address. Leaf vacuuming for your area began on #{new_date}, not #{old_date}. We are in the process of vacuuming your area, and will be to your house soon if we have not serviced your address already. We apologize for the mistake, and any inconvenience it caused."
 end
 
-def helper.manual_message(zone, zone_id, status, dates)
-  return {} unless collection_season == 2016
+def helper.manual_message(zone, zone_id, status, comment)
+  return {} unless collection_season == 2017
 
-  message = if zone == 'C-7'
-    "Important leaf vacuuming information... The text you received last week contained the incorrect start date for your street's leaf vacuuming service. The correct date is 11/30. We apologize for the error. Please be sure to prepare your leaves before collection begins by raking them in your yard to the edge of the sidewalk or curb. Never rake leaves into the street. We will text you a reminder the week before your vacuum collection begins. To unsubscribe from these updates, respond REMOVE. To enroll with a new address, respond with REMOVE and visit www.LexingtonKY.gov/leaves later this week."
+  # 2016 for Pending messages so that we don't accidentally send pending again
+  season_id = if status == 'Pending'
+    '2016'
+  else
+    collection_season
   end
+
+  comment_hash = if not comment.nil?
+    Digest::MD5.hexdigest(comment)
+  end
+
+  message = if zone == 'C-7' && status == 'Pending' && comment.nil?
+    {
+      message_id: '2016__Pending_correction',
+      message: "Important leaf vacuuming information... The text you received last week contained the incorrect start date for your street's leaf vacuuming service. The correct date is 11/30. We apologize for the error. Please be sure to prepare your leaves before collection begins by raking them in your yard to the edge of the sidewalk or curb. Never rake leaves into the street. We will text you a reminder the week before your vacuum collection begins. To unsubscribe from these updates, respond REMOVE. To enroll with a new address, respond with REMOVE and visit www.LexingtonKY.gov/leaves later this week."
+    }
+  elsif not comment.nil?
+    {
+      message_id: "#{season_id}_#{zone_id}_#{comment_hash}",
+      message: comment
+    }
+  end
+
+
   if (message)
-    # hash ensures any change in a message triggers new event in citygram
-    message_hash = Digest::MD5.hexdigest(message)
-    { message_id: "#{collection_season}_#{zone_id}_#{status}_correction", message: message }
+    message
   else
     {}
   end
+
 end
 
 def helper.automated_message(zone_id, status, dates)
@@ -34,6 +54,13 @@ def helper.automated_message(zone_id, status, dates)
   remember = 'Remember: only residential properties receiving city waste collection services are eligible for this service.'
   prep = 'Remember to prepare your leaves the Sunday before your collection window begins. Pile them in your yard on the edge of the curb, never in the street.'
   more = "Find out more at #{link}"
+
+  # 2016 for Pending messages so that we don't accidentally send pending again
+  season_id = if status == 'Pending'
+    '2016'
+  else
+    collection_season
+  end
 
   message = case status
     when 'In Progress'
@@ -48,14 +75,13 @@ def helper.automated_message(zone_id, status, dates)
 
   # include collection_season in id. Otherwise if zone ends last year with a status
   # then begins this year with same status, they don't get a message
-  { message_id: "#{collection_season}_#{zone_id}_#{status}", message: message }
+  { message_id: "#{season_id}_#{zone_id}_#{status}", message: message }
 end
 
-def helper.message(zone, zone_id, status, dates)
-  manual = manual_message(zone, zone_id, status, dates)
+def helper.message(zone, zone_id, status, dates, comment)
+  manual = manual_message(zone, zone_id, status, comment)
 
-  # manual[:message] ? manual : automated_message(zone_id, status, dates)
-  manual[:message] ? manual : {}
+  manual[:message] ? manual : automated_message(zone_id, status, dates)
 end
 
 opts = {
@@ -66,11 +92,12 @@ opts = {
 
 SpyGlass::Registry << SpyGlass::Client::JSON.new(opts) do |esri_formatted|
   features = esri_formatted['features'].map do |feature|
-    zone_id = feature['attributes']['GIS_master.DBO.LeafCollection.OBJECTID']
+    zone_id = feature['attributes']['GIS_master.DBO.LeafCollectionBoundary.OBJECTID']
     status = feature['attributes']['GIS_master.DBO.LeafZoneSchedule.Status']
     dates = feature['attributes']['GIS_master.DBO.LeafZoneSchedule.Dates']
     zone = feature['attributes']['GIS_master.DBO.LeafZoneSchedule.Zone']
-    message_object = helper.message(zone, zone_id, status, dates)
+    comment = feature['attributes']['GIS_master.DBO.LeafZoneSchedule.Comments']
+    message_object = helper.message(zone, zone_id, status, dates, comment)
     message = message_object[:message]
 
     if message.nil?
@@ -79,6 +106,7 @@ SpyGlass::Registry << SpyGlass::Client::JSON.new(opts) do |esri_formatted|
       {
         'type' => 'Feature',
         'id' => "#{message_object[:message_id]}",
+        'zone' => zone,
         'properties' => {
           'title' => message,
         },
@@ -88,10 +116,8 @@ SpyGlass::Registry << SpyGlass::Client::JSON.new(opts) do |esri_formatted|
          }
       }
     end
-
   end
 
-  # { 'type' => 'FeatureCollection', 'features' => features.compact }
   { 'type' => 'FeatureCollection', 'features' => features.compact }
 end
 
