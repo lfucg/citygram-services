@@ -28,11 +28,13 @@ def helper.manual_message(zone, zone_id, status, comment)
   end
 
 
-  if (message)
-    message
-  else
-    {}
-  end
+  # if (message)
+  #   message
+  # else
+  #   {}
+  # end
+
+  {}
 
 end
 
