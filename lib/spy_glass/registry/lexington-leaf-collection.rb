@@ -10,11 +10,7 @@ def helper.manual_message(zone, zone_id, status, comment)
   return {} unless collection_season == 2017
 
   # 2016 for Pending messages so that we don't accidentally send pending again
-  season_id = if status == 'Pending'
-    '2016'
-  else
-    collection_season
-  end
+  season_id = collection_season
 
   comment_hash = if not comment.nil?
     Digest::MD5.hexdigest(comment)
@@ -28,13 +24,11 @@ def helper.manual_message(zone, zone_id, status, comment)
   end
 
 
-  # if (message)
-  #   message
-  # else
-  #   {}
-  # end
-
-  {}
+  if (message)
+    message
+  else
+    {}
+  end
 
 end
 
